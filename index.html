@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2026 KBO 야구 경기일정</title>
+  <style>
+    :root {
+      --bg: #0d0d1a;
+      --surface: #161626;
+      --surface2: #1e1e34;
+      --border: #2a2a48;
+      --text: #dde0f0;
+      --muted: #7777aa;
+      --accent: #4a9eff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Noto Sans KR', 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #070714 0%, #12122a 100%);
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 800; color: #fff; }
+    header a { color: var(--accent); font-size: 0.78rem; text-decoration: none; }
+    header a:hover { text-decoration: underline; }
+
+    /* ── Layout ── */
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 18px 16px; }
+
+    /* ── Team selector ── */
+    .team-selector {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .team-selector label {
+      display: block;
+      font-size: 0.73rem;
+      color: var(--muted);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .team-btns { display: flex; flex-wrap: wrap; gap: 7px; }
+    .tbtn {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 2px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 700;
+      transition: all .15s;
+      font-family: inherit;
+    }
+    .tbtn:hover { filter: brightness(1.25); }
+    .tbtn.active-all {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* ── Month tabs ── */
+    .month-row {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 12px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .mtab {
+      padding: 7px 15px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.88rem;
+      white-space: nowrap;
+      transition: all .15s;
+      font-family: inherit;
+    }
+    .mtab:hover:not(.active) { background: var(--surface2); color: var(--text); }
+    .mtab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ── Legend ── */
+    .legend {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .ldot { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+
+    /* ── Status ── */
+    #status {
+      text-align: center;
+      padding: 40px;
+      font-size: 0.9rem;
+      color: var(--accent);
+    }
+    #status.err { color: #ff6b6b; }
+
+    /* ── Calendar ── */
+    .cal-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .cal-head {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .cal-head span {
+      text-align: center;
+      padding: 9px 4px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .cal-head span:first-child { color: #ff7675; }
+    .cal-head span:last-child  { color: #74b9ff; }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+
+    .cal-cell {
+      min-height: 96px;
+      padding: 7px 5px 6px;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .cal-cell:nth-child(7n) { border-right: none; }
+    .cal-cell.empty { background: rgba(0,0,0,.12); }
+    .cal-cell.today { background: rgba(74,158,255,.05); }
+
+    .dnum {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 4px;
+      min-height: 22px;
+      display: flex;
+      align-items: center;
+    }
+    .cal-cell.sun .dnum { color: #ff7675; }
+    .cal-cell.sat .dnum { color: #74b9ff; }
+    .today-circle {
+      background: var(--accent);
+      color: #fff;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.76rem;
+    }
+
+    /* ── Game badge ── */
+    .gbadge {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 3px;
+      padding: 3px 6px;
+      border-radius: 5px;
+      margin-bottom: 3px;
+      cursor: pointer;
+      font-size: 0.69rem;
+      line-height: 1.3;
+      transition: filter .12s;
+      overflow: hidden;
+    }
+    .gbadge:hover { filter: brightness(1.2); }
+    .gbadge .matchup { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .gbadge .right { flex-shrink: 0; font-weight: 800; font-size: 0.65rem; opacity: .85; white-space: nowrap; }
+
+    /* ── Detail Modal ── */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.65);
+      z-index: 900;
+    }
+    .overlay.show { display: block; }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 20px 18px;
+      z-index: 901;
+      width: 280px;
+      box-shadow: 0 24px 48px rgba(0,0,0,.6);
+    }
+    .modal.show { display: block; }
+    .modal-date { text-align: center; font-size: 0.78rem; color: var(--muted); margin-bottom: 14px; }
+    .modal-teams {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    .modal-team { text-align: center; }
+    .modal-team .tname { font-size: 1.05rem; font-weight: 800; }
+    .modal-team .tscore { font-size: 2rem; font-weight: 900; color: #fff; line-height: 1; margin-top: 4px; }
+    .modal-team .tlabel { font-size: 0.68rem; color: var(--muted); margin-bottom: 2px; }
+    .modal-result {
+      text-align: center;
+      padding: 6px 10px;
+      background: rgba(255,255,255,.05);
+      border-radius: 7px;
+      font-size: 0.82rem;
+      margin-bottom: 14px;
+    }
+    .modal-close {
+      width: 100%;
+      padding: 8px;
+      background: var(--accent);
+      border: none;
+      border-radius: 7px;
+      color: #fff;
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .modal-close:hover { filter: brightness(1.1); }
+
+    /* ── Summary count ── */
+    .summary-bar {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .summary-bar strong { color: var(--text); }
+
+    @media (max-width: 580px) {
+      .cal-cell { min-height: 68px; padding: 5px 3px; }
+      .gbadge { font-size: 0.62rem; padding: 2px 4px; }
+      header h1 { font-size: 1.15rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚾ 2026 KBO 야구 경기일정</h1>
+  <a href="https://kbo.elezy.com" target="_blank">데이터: kbo.elezy.com</a>
+</header>
+
+<div class="wrap">
+
+  <!-- 팀 선택 -->
+  <div class="team-selector">
+    <label>팀 선택</label>
+    <div class="team-btns" id="teamBtns"></div>
+  </div>
+
+  <!-- 월 탭 -->
+  <div class="month-row" id="monthRow"></div>
+
+  <!-- 범례 -->
+  <div class="legend">
+    <span class="legend-item"><span class="ldot" style="background:#4a9eff"></span>홈경기</span>
+    <span class="legend-item"><span class="ldot" style="background:var(--surface2);border:1px solid #555"></span>원정경기</span>
+    <span class="legend-item">● = 결과 있음 &nbsp; ○ = 예정</span>
+  </div>
+
+  <!-- 요약 -->
+  <div class="summary-bar" id="summaryBar"></div>
+
+  <!-- 로딩/에러 -->
+  <div id="status">📡 일정 데이터를 불러오는 중...</div>
+
+  <!-- 캘린더 -->
+  <div class="cal-wrap" id="calWrap" style="display:none">
+    <div class="cal-head">
+      <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+
+</div>
+
+<!-- 상세 팝업 -->
+<div class="overlay" id="overlay" onclick="closeModal()"></div>
+<div class="modal" id="modal">
+  <div class="modal-date" id="mDate"></div>
+  <div class="modal-teams" id="mTeams"></div>
+  <div class="modal-result" id="mResult"></div>
+  <button class="modal-close" onclick="closeModal()">닫기</button>
+</div>
+
+<script>
+/* ── 팀 정보 ── */
+const TEAMS = {
+  'KIA':  { full: 'KIA 타이거즈',  color: '#EA0029' },
+  '삼성': { full: '삼성 라이온즈', color: '#1767b4' },
+  'LG':   { full: 'LG 트윈스',    color: '#C30452' },
+  '두산': { full: '두산 베어스',   color: '#3A3A9A' },
+  'KT':   { full: 'KT 위즈',      color: '#666666' },
+  'SSG':  { full: 'SSG 랜더스',   color: '#CE0E2D' },
+  '롯데': { full: '롯데 자이언츠', color: '#0B4EA2' },
+  '한화': { full: '한화 이글스',   color: '#FF6600' },
+  'NC':   { full: 'NC 다이노스',   color: '#1A5276' },
+  '키움': { full: '키움 히어로즈', color: '#820024' },
+};
+
+const MONTHS = [3, 4, 5, 6, 7, 8, 9, 10];
+const YEAR   = 2026;
+
+let allGames    = [];
+let selTeam     = 'ALL';
+let selMonth    = (() => {
+  const m = new Date().getMonth() + 1;
+  return (m >= 3 && m <= 10) ? m : 3;
+})();
+
+/* ── iCal 파서 ── */
+function parseIcal(txt) {
+  const games = [];
+  const blocks = txt.split('BEGIN:VEVENT');
+  for (let i = 1; i < blocks.length; i++) {
+    const b = blocks[i];
+    const dtm = b.match(/DTSTART[^:\r\n]*:(\d{8})T(\d{6})/);
+    const sm  = b.match(/SUMMARY:([^\r\n]+)/);
+    const lm  = b.match(/LOCATION:([^\r\n]+)/);
+    if (!dtm || !sm) continue;
+
+    const dateRaw = dtm[1];
+    const timeRaw = dtm[2];
+    const summary = sm[1].trim();
+    const loc     = lm ? lm[1].trim() : '';
+
+    const date = `${dateRaw.slice(0,4)}-${dateRaw.slice(4,6)}-${dateRaw.slice(6,8)}`;
+    const time = `${timeRaw.slice(0,2)}:${timeRaw.slice(2,4)}`;
+
+    // "팀A vs 팀B (s1 : s2)"  or  "팀A vs 팀B"
+    const scored   = summary.match(/^(.+?) vs (.+?) \((\d+) : (\d+)\)/);
+    const unscored = summary.match(/^(.+?) vs (.+?)$/);
+
+    let away, home, awayScore = null, homeScore = null;
+    if (scored) {
+      away = scored[1].trim(); home = scored[2].trim();
+      awayScore = +scored[3];  homeScore = +scored[4];
+    } else if (unscored) {
+      away = unscored[1].trim(); home = unscored[2].trim();
+    } else { continue; }
+
+    games.push({ date, time, away, home, stadium: loc, awayScore, homeScore });
+  }
+  return games;
+}
+
+/* ── 중복 제거 ── */
+function dedup(arr) {
+  const seen = new Set();
+  return arr.filter(g => {
+    const k = `${g.date}|${g.away}|${g.home}`;
+    return seen.has(k) ? false : (seen.add(k), true);
+  });
+}
+
+/* ── 데이터 로드 ── */
+async function loadSchedule() {
+  const BASE = 'https://kbo.elezy.com/schedule/ALL';
+  const PROXIES = [
+    BASE,
+    `https://corsproxy.io/?url=${encodeURIComponent(BASE)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(BASE)}`,
+  ];
+
+  for (const url of PROXIES) {
+    try {
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), 9000);
+      const res  = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(tid);
+      if (!res.ok) continue;
+      const txt = await res.text();
+      if (txt.includes('VCALENDAR')) return parseIcal(txt);
+    } catch (_) { /* try next */ }
+  }
+  return null;
+}
+
+/* ── 팀 버튼 렌더링 ── */
+function renderTeamBtns() {
+  const el = document.getElementById('teamBtns');
+  el.innerHTML = '';
+
+  const all = document.createElement('button');
+  all.className = 'tbtn' + (selTeam === 'ALL' ? ' active-all' : '');
+  all.textContent = '전체';
+  all.onclick = () => { selTeam = 'ALL'; renderTeamBtns(); renderSummary(); renderCal(); };
+  el.appendChild(all);
+
+  Object.entries(TEAMS).forEach(([code, info]) => {
+    const btn = document.createElement('button');
+    const isAct = selTeam === code;
+    btn.className = 'tbtn';
+    btn.textContent = code;
+    btn.title = info.full;
+    btn.style.borderColor = info.color;
+    if (isAct) {
+      btn.style.background = info.color;
+      btn.style.color      = '#fff';
+      btn.style.borderColor = info.color;
+    }
+    btn.onclick = () => { selTeam = code; renderTeamBtns(); renderSummary(); renderCal(); };
+    el.appendChild(btn);
+  });
+}
+
+/* ── 월 탭 렌더링 ── */
+function renderMonthTabs() {
+  const el = document.getElementById('monthRow');
+  el.innerHTML = '';
+  MONTHS.forEach(m => {
+    const t = document.createElement('button');
+    t.className = 'mtab' + (selMonth === m ? ' active' : '');
+    t.textContent = `${m}월`;
+    t.onclick = () => { selMonth = m; renderMonthTabs(); renderSummary(); renderCal(); };
+    el.appendChild(t);
+  });
+}
+
+/* ── 해당 월/팀 게임 필터 ── */
+function filtered() {
+  const pfx = `${YEAR}-${String(selMonth).padStart(2,'0')}`;
+  return allGames.filter(g => {
+    if (!g.date.startsWith(pfx)) return false;
+    if (selTeam === 'ALL') return true;
+    return g.home === selTeam || g.away === selTeam;
+  });
+}
+
+/* ── 요약바 ── */
+function renderSummary() {
+  const gs  = filtered();
+  const bar = document.getElementById('summaryBar');
+  if (gs.length === 0) { bar.textContent = ''; return; }
+  const done = gs.filter(g => g.awayScore !== null).length;
+  const team = selTeam === 'ALL' ? '전체' : (TEAMS[selTeam]?.full || selTeam);
+  bar.innerHTML = `<strong>${team}</strong> · ${selMonth}월 총 <strong>${gs.length}</strong>경기 (완료 ${done} / 예정 ${gs.length - done})`;
+}
+
+/* ── 캘린더 렌더링 ── */
+function renderCal() {
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+
+  const gs = filtered();
+  const map = {};
+  gs.forEach(g => { (map[g.date] = map[g.date] || []).push(g); });
+
+  const first = new Date(YEAR, selMonth - 1, 1).getDay(); // 0=Sun
+  const days  = new Date(YEAR, selMonth, 0).getDate();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const cell = (cls) => {
+    const d = document.createElement('div');
+    d.className = 'cal-cell ' + cls;
+    return d;
+  };
+
+  // 빈 칸
+  for (let i = 0; i < first; i++) grid.appendChild(cell('empty'));
+
+  // 날짜 칸
+  for (let d = 1; d <= days; d++) {
+    const ds  = `${YEAR}-${String(selMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = (first + d - 1) % 7;
+    const cls = [dow === 0 ? 'sun' : dow === 6 ? 'sat' : '', ds === today ? 'today' : ''].join(' ');
+    const c   = cell(cls);
+
+    // 날짜 숫자
+    const dn = document.createElement('div');
+    dn.className = 'dnum';
+    if (ds === today) {
+      const circ = document.createElement('div');
+      circ.className = 'today-circle';
+      circ.textContent = d;
+      dn.appendChild(circ);
+    } else {
+      dn.textContent = d;
+    }
+    c.appendChild(dn);
+
+    // 경기 배지
+    (map[ds] || []).sort((a, b) => a.time.localeCompare(b.time)).forEach(g => {
+      c.appendChild(makeBadge(g));
+    });
+
+    grid.appendChild(c);
+  }
+
+  // 나머지 빈 칸
+  const rem = (7 - ((first + days) % 7)) % 7;
+  for (let i = 0; i < rem; i++) grid.appendChild(cell('empty'));
+}
+
+/* ── 게임 배지 ── */
+function makeBadge(g) {
+  const b    = document.createElement('div');
+  b.className = 'gbadge';
+
+  const isHome = selTeam !== 'ALL' && g.home === selTeam;
+  const isAway = selTeam !== 'ALL' && g.away === selTeam;
+  const hInfo  = TEAMS[g.home] || { color: '#555' };
+
+  // 색상
+  if (selTeam === 'ALL') {
+    b.style.background = hInfo.color + 'cc';
+    b.style.color = '#fff';
+  } else if (isHome) {
+    b.style.background = (TEAMS[selTeam]?.color || '#555') + 'cc';
+    b.style.color = '#fff';
+  } else {
+    b.style.background = 'rgba(255,255,255,.07)';
+    b.style.border = `1px solid ${TEAMS[selTeam]?.color || '#555'}88`;
+    b.style.color = TEAMS[selTeam]?.color || '#aaa';
+  }
+
+  // 텍스트
+  let matchupTxt;
+  if (selTeam === 'ALL') {
+    matchupTxt = `${g.away} vs ${g.home}`;
+  } else if (isHome) {
+    matchupTxt = `🏠vs ${g.away}`;
+  } else {
+    matchupTxt = `✈ @${g.home}`;
+  }
+
+  const hasScore = g.awayScore !== null;
+  const rightTxt = hasScore
+    ? `${g.awayScore}:${g.homeScore}`
+    : g.time;
+
+  const ml = document.createElement('span');
+  ml.className = 'matchup';
+  ml.textContent = matchupTxt;
+
+  const mr = document.createElement('span');
+  mr.className = 'right';
+  mr.textContent = rightTxt;
+  if (!hasScore) mr.style.opacity = '.45';
+
+  b.appendChild(ml);
+  b.appendChild(mr);
+  b.onclick = (e) => { e.stopPropagation(); openModal(g); };
+  return b;
+}
+
+/* ── 상세 모달 ── */
+function openModal(g) {
+  const hasScore = g.awayScore !== null;
+  const hInfo    = TEAMS[g.home] || { color: '#aaa', full: g.home };
+  const aInfo    = TEAMS[g.away] || { color: '#aaa', full: g.away };
+
+  document.getElementById('mDate').innerHTML =
+    `<strong>${g.date}</strong> &nbsp;${g.time} 시작&nbsp;&nbsp;📍 ${g.stadium}`;
+
+  const scoreHtml = (score, color) =>
+    hasScore ? `<div class="tscore" style="color:${color}">${score}</div>` : '';
+
+  document.getElementById('mTeams').innerHTML = `
+    <div class="modal-team">
+      <div class="tlabel">원정</div>
+      <div class="tname" style="color:${aInfo.color}">${g.away}</div>
+      ${scoreHtml(g.awayScore, aInfo.color)}
+    </div>
+    <div style="color:var(--muted);font-size:.9rem">VS</div>
+    <div class="modal-team">
+      <div class="tlabel">홈</div>
+      <div class="tname" style="color:${hInfo.color}">${g.home}</div>
+      ${scoreHtml(g.homeScore, hInfo.color)}
+    </div>`;
+
+  let result = '';
+  if (hasScore) {
+    if (g.awayScore > g.homeScore)
+      result = `${aInfo.full} 승 (${g.awayScore} : ${g.homeScore})`;
+    else if (g.homeScore > g.awayScore)
+      result = `${hInfo.full} 승 (${g.awayScore} : ${g.homeScore})`;
+    else
+      result = `무승부 (${g.awayScore} : ${g.homeScore})`;
+  } else {
+    result = '⏰ 경기 예정';
+  }
+  document.getElementById('mResult').textContent = result;
+
+  document.getElementById('modal').classList.add('show');
+  document.getElementById('overlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+/* ── 초기화 ── */
+async function init() {
+  renderTeamBtns();
+  renderMonthTabs();
+
+  const statusEl = document.getElementById('status');
+
+  const games = await loadSchedule();
+
+  if (games && games.length > 0) {
+    allGames = dedup(games);
+    statusEl.style.display = 'none';
+    document.getElementById('calWrap').style.display = 'block';
+    renderSummary();
+    renderCal();
+  } else {
+    statusEl.className = 'err';
+    statusEl.innerHTML = `
+      ⚠️ 데이터를 자동으로 불러오지 못했습니다.<br><br>
+      <a href="https://kbo.elezy.com" target="_blank" style="color:var(--accent)">kbo.elezy.com</a>에서
+      직접 확인하거나, 잠시 후 새로고침 해보세요.
+    `;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
